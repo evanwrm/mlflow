@@ -434,6 +434,7 @@ def test_hard_delete_experiment_cascades_to_child_tables(
     )
     request_id = f"tr-{uuid.uuid4()}"
     model_id = uuid.uuid4().hex
+    host_model_id = uuid.uuid4().hex
     # Park the run under host_exp_id so its run_uuid is available to satisfy
     # the SqlLoggedModelMetric.run_id FK without entering the cascade chain
     # we're asserting on.
@@ -456,6 +457,17 @@ def test_hard_delete_experiment_cascades_to_child_tables(
                 model_id=model_id,
                 experiment_id=target_exp_id,
                 name="cascade-model",
+                artifact_location="/tmp/artifact",
+                creation_timestamp_ms=timestamp_ms,
+                last_updated_timestamp_ms=timestamp_ms,
+                status=LoggedModelStatus.READY.to_int(),
+            )
+        )
+        session.add(
+            SqlLoggedModel(
+                model_id=host_model_id,
+                experiment_id=host_exp_id,
+                name="host-model",
                 artifact_location="/tmp/artifact",
                 creation_timestamp_ms=timestamp_ms,
                 last_updated_timestamp_ms=timestamp_ms,
@@ -506,9 +518,11 @@ def test_hard_delete_experiment_cascades_to_child_tables(
                 value=1.0,
             )
         )
+        # Attach logged model child rows to a host model so they cannot be
+        # removed through the target experiment's logged model cascade.
         session.add(
             SqlLoggedModelMetric(
-                model_id=model_id,
+                model_id=host_model_id,
                 metric_name="m",
                 metric_timestamp_ms=timestamp_ms,
                 metric_step=0,
@@ -519,7 +533,7 @@ def test_hard_delete_experiment_cascades_to_child_tables(
         )
         session.add(
             SqlLoggedModelParam(
-                model_id=model_id,
+                model_id=host_model_id,
                 experiment_id=target_exp_id,
                 param_key="p",
                 param_value="v",
@@ -527,7 +541,7 @@ def test_hard_delete_experiment_cascades_to_child_tables(
         )
         session.add(
             SqlLoggedModelTag(
-                model_id=model_id,
+                model_id=host_model_id,
                 experiment_id=target_exp_id,
                 tag_key="t",
                 tag_value="v",
@@ -536,6 +550,9 @@ def test_hard_delete_experiment_cascades_to_child_tables(
 
     # _hard_delete_experiment requires the experiment to be soft-deleted first.
     store.delete_experiment(str(target_exp_id))
+    with store.ManagedSessionMaker() as session:
+        for model in (SqlLoggedModelMetric, SqlLoggedModelParam, SqlLoggedModelTag):
+            assert session.query(model).filter_by(experiment_id=target_exp_id).count() == 1
     store._hard_delete_experiment(str(target_exp_id))
 
     with store.ManagedSessionMaker() as session:
