@@ -20,35 +20,31 @@ branch_labels = None
 depends_on = None
 
 
-_EXPERIMENT_FKS = [
-    (SqlTraceInfo.__tablename__, "fk_trace_info_experiment_id"),
-]
-
-
 def _alter_experiment_fk(ondelete=None):
     dialect_name = op.get_context().dialect.name
+    table_name = SqlTraceInfo.__tablename__
+    constraint_name = "fk_trace_info_experiment_id"
 
-    for table_name, constraint_name in _EXPERIMENT_FKS:
-        if dialect_name == "sqlite":
-            with op.batch_alter_table(table_name, schema=None) as batch_op:
-                batch_op.drop_constraint(constraint_name, type_="foreignkey")
-                batch_op.create_foreign_key(
-                    constraint_name,
-                    SqlExperiment.__tablename__,
-                    ["experiment_id"],
-                    ["experiment_id"],
-                    ondelete=ondelete,
-                )
-        else:
-            op.drop_constraint(constraint_name, table_name, type_="foreignkey")
-            op.create_foreign_key(
+    if dialect_name == "sqlite":
+        with op.batch_alter_table(table_name, schema=None) as batch_op:
+            batch_op.drop_constraint(constraint_name, type_="foreignkey")
+            batch_op.create_foreign_key(
                 constraint_name,
-                table_name,
                 SqlExperiment.__tablename__,
                 ["experiment_id"],
                 ["experiment_id"],
                 ondelete=ondelete,
             )
+    else:
+        op.drop_constraint(constraint_name, table_name, type_="foreignkey")
+        op.create_foreign_key(
+            constraint_name,
+            table_name,
+            SqlExperiment.__tablename__,
+            ["experiment_id"],
+            ["experiment_id"],
+            ondelete=ondelete,
+        )
 
 
 def upgrade():
