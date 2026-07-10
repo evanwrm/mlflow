@@ -8,9 +8,6 @@ from alembic import op
 
 from mlflow.store.tracking.dbmodels.models import (
     SqlExperiment,
-    SqlLoggedModelMetric,
-    SqlLoggedModelParam,
-    SqlLoggedModelTag,
     SqlTraceInfo,
 )
 
@@ -23,21 +20,11 @@ depends_on = None
 
 _EXPERIMENT_FKS = [
     (SqlTraceInfo.__tablename__, "fk_trace_info_experiment_id"),
-    (SqlLoggedModelMetric.__tablename__, "fk_logged_model_metrics_experiment_id"),
-    (SqlLoggedModelParam.__tablename__, "fk_logged_model_params_experiment_id"),
-    (SqlLoggedModelTag.__tablename__, "fk_logged_model_tags_experiment_id"),
-]
-
-_MSSQL_EXPERIMENT_FKS = [
-    (SqlTraceInfo.__tablename__, "fk_trace_info_experiment_id"),
 ]
 
 
 def upgrade():
-    experiment_fks = (
-        _MSSQL_EXPERIMENT_FKS if op.get_bind().dialect.name == "mssql" else _EXPERIMENT_FKS
-    )
-    for table_name, constraint_name in experiment_fks:
+    for table_name, constraint_name in _EXPERIMENT_FKS:
         with op.batch_alter_table(table_name, schema=None) as batch_op:
             batch_op.drop_constraint(constraint_name, type_="foreignkey")
             batch_op.create_foreign_key(
