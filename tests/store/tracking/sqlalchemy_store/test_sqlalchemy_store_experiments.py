@@ -425,6 +425,10 @@ def test_search_experiments_filter_by_tag_is_null(store: SqlAlchemyStore):
 def test_hard_delete_experiment_cascades_to_child_tables(
     store: SqlAlchemyStore,
 ):
+    """Regression: previously ``SqlTraceInfo`` had no relationship to
+    ``SqlExperiment``, so ``session.delete(experiment)`` did not emit DELETE
+    for trace_info rows.
+    """
     target_exp_id, host_exp_id = (
         int(eid) for eid in _create_experiments(store, ["fk-cascade-target", "fk-cascade-host"])
     )

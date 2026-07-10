@@ -1,5 +1,7 @@
 """add experiment foreign key cascades
 
+See https://github.com/mlflow/mlflow/issues/18781.
+
 Create Date: 2026-07-09 21:16:54.445000
 
 """
@@ -23,18 +25,35 @@ _EXPERIMENT_FKS = [
 ]
 
 
-def upgrade():
+def _alter_experiment_fk(ondelete=None):
+    dialect_name = op.get_context().dialect.name
+
     for table_name, constraint_name in _EXPERIMENT_FKS:
-        with op.batch_alter_table(table_name, schema=None) as batch_op:
-            batch_op.drop_constraint(constraint_name, type_="foreignkey")
-            batch_op.create_foreign_key(
+        if dialect_name == "sqlite":
+            with op.batch_alter_table(table_name, schema=None) as batch_op:
+                batch_op.drop_constraint(constraint_name, type_="foreignkey")
+                batch_op.create_foreign_key(
+                    constraint_name,
+                    SqlExperiment.__tablename__,
+                    ["experiment_id"],
+                    ["experiment_id"],
+                    ondelete=ondelete,
+                )
+        else:
+            op.drop_constraint(constraint_name, table_name, type_="foreignkey")
+            op.create_foreign_key(
                 constraint_name,
+                table_name,
                 SqlExperiment.__tablename__,
                 ["experiment_id"],
                 ["experiment_id"],
-                ondelete="CASCADE",
+                ondelete=ondelete,
             )
 
 
+def upgrade():
+    _alter_experiment_fk(ondelete="CASCADE")
+
+
 def downgrade():
-    pass
+    _alter_experiment_fk()
