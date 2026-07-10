@@ -871,6 +871,10 @@ class SqlAlchemyStore(SqlAlchemyGatewayStoreMixin, AbstractStore):
                 session=session,
                 view_type=ViewType.DELETED_ONLY,
             )
+            for model in (SqlLoggedModelMetric, SqlLoggedModelParam, SqlLoggedModelTag):
+                session.query(model).filter(model.experiment_id == experiment_id).delete(
+                    synchronize_session=False
+                )
             session.delete(experiment)
 
     def _mark_run_deleted(self, session, run):
